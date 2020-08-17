@@ -4,29 +4,35 @@ const tls = require('tls')
 const url = require('url')
 const isHttpsProxy = require('is-https-proxy')
 
+function getEnvProxy () {
+  const envKeys = Object.keys(process.env)
+  const keyIndex = envKeys.findIndex(key => key.toLowerCase() === 'https_proxy')
+  if (keyIndex === -1) {
+    return
+  }
+  const { hostname, port, username, password } = new url.URL(process.env[envKeys[keyIndex]])
+  if (username != null && password != null) {
+    return { hostname, port, auth: `${username}:${password}` }
+  } else {
+    return { hostname, port }
+  }
+}
+
 class myAgent extends https.Agent {
   constructor (options) {
     options = options || {}
-    if (options.proxy === undefined) {
-      let u = null
-      if (process.env.HTTPS_PROXY !== undefined) {
-        u = new url.URL(process.env.HTTPS_PROXY)
-      }
-      if (process.env.https_proxy !== undefined) {
-        u = new url.URL(process.env.https_proxy)
-      }
-      if (u) {
-        options.proxy = { hostname: u.hostname, port: u.port }
-      }
-    }
-    if (options.keepAlive === undefined) {
+    const proxy = options.proxy || getEnvProxy()
+    delete options.proxy
+    if (options.keepAlive == null) {
       options.keepAlive = true
     }
     super(options)
+
+    this.proxy = proxy
   }
 
   createConnectionHttpsAfterHttp (options, cb) {
-    const proxySocket = (options.proxy.isHttps ? tls : net).connect(options.proxy)
+    const proxySocket = (this.proxy.isHttps ? tls : net).connect(this.proxy)
     const errorListener = (error) => {
       proxySocket.destroy()
       cb(error)
@@ -56,10 +62,10 @@ class myAgent extends https.Agent {
     }
     proxySocket.on('data', dataListener)
 
-    let cmd = 'CONNECT ' + options.hostname + ':' + options.port + ' HTTP/1.1\r\n'
-    if (options.proxy.auth) {
+    let cmd = 'CONNECT ' + (options.hostname || options.host) + ':' + options.port + ' HTTP/1.1\r\n'
+    if (this.proxy.auth) {
       // noinspection JSCheckFunctionSignatures
-      const auth = Buffer.from(options.proxy.auth).toString('base64')
+      const auth = Buffer.from(this.proxy.auth).toString('base64')
       cmd += 'Proxy-Authorization: Basic ' + auth + '\r\n'
     }
     cmd += '\r\n'
@@ -67,16 +73,17 @@ class myAgent extends https.Agent {
   }
 
   createConnection (options, cb) {
-    if (options.proxy) {
+    if (this.proxy) {
       Promise.resolve()
         .then(() => {
-          if (typeof options.proxy.isHttps !== 'boolean') {
-            return isHttpsProxy(options.proxy)
+          if (typeof this.proxy.isHttps !== 'boolean') {
+            return isHttpsProxy(this.proxy)
               .then(isHttps => {
-                options.proxy.isHttps = isHttps
+                this.proxy.isHttps = isHttps
               })
           }
         })
+        .catch()
         .finally(() => this.createConnectionHttpsAfterHttp(options, cb))
     } else {
       cb(null, super.createConnection(options))

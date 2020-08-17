@@ -1,6 +1,8 @@
 const https = require('https')
 const net = require('net')
+const tls = require('tls')
 const url = require('url')
+const isHttpsProxy = require('is-https-proxy')
 
 class myAgent extends https.Agent {
   constructor (options) {
@@ -24,7 +26,7 @@ class myAgent extends https.Agent {
   }
 
   createConnectionHttpsAfterHttp (options, cb) {
-    const proxySocket = net.connect(options.proxy)
+    const proxySocket = (options.proxy.isHttps ? tls : net).connect(options.proxy)
     const errorListener = (error) => {
       proxySocket.destroy()
       cb(error)
@@ -66,7 +68,16 @@ class myAgent extends https.Agent {
 
   createConnection (options, cb) {
     if (options.proxy) {
-      this.createConnectionHttpsAfterHttp(options, cb)
+      Promise.resolve()
+        .then(() => {
+          if (typeof options.proxy.isHttps !== 'boolean') {
+            return isHttpsProxy(options.proxy)
+              .then(isHttps => {
+                options.proxy.isHttps = isHttps
+              })
+          }
+        })
+        .finally(() => this.createConnectionHttpsAfterHttp(options, cb))
     } else {
       cb(null, super.createConnection(options))
     }

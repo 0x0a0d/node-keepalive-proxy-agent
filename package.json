@@ -22,7 +22,9 @@
     "url": "https://github.com/mknj/node-keepalive-proxy-agent/issues"
   },
   "homepage": "https://github.com/mknj/node-keepalive-proxy-agent#readme",
-  "dependencies": {},
+  "dependencies": {
+    "is-https-proxy": "^1.0.0"
+  },
   "devDependencies": {
     "https-agent": "^1.0.0",
     "https-proxy-agent": "^5.0.0",

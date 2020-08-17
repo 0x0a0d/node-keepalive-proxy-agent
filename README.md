@@ -30,7 +30,11 @@ npm install keepalive-proxy-agent
 let https = require('https')
 let Agent = require('keepalive-proxy-agent')
 let agent = new Agent ()
-let options = {hostname: 'google.de', port: 443, agent: agent}
+let options = {
+    hostname: 'google.de',
+    port: 443,
+    agent: agent
+}
 https.get(options, (resp) => resp.pipe(process.stdout))
 
 ```
@@ -38,25 +42,19 @@ https.get(options, (resp) => resp.pipe(process.stdout))
 ## using provided proxy
 ``` javascript
 ...
-let agent = new Agent ({proxy:{hostname:"MYPROXYHOST",port:3128}})
+let agent = new Agent ({
+    proxy:{
+        hostname: "MYPROXYHOST",
+        port: 3128,
+        // check server certs? (false to ignore)
+        rejectUnauthorized: true,
+        // proxy authentication, should follor [caveat](https://nodejs.org/api/url.html#url_url_strings_and_url_objects for details) huh?
+        username: "USER",
+        password: "PASSWORD"
+    }
+})
 ...
 
-```
-
-## connect to self-signed-server over proxy
-
-``` javascript
-...
-let options = {hostname: 'google.de', port: 443, agent: agent, rejectUnauthorized: false}
-...
-```
-
-## allow proxy authentication
-
-``` javascript
-...
-let agent = new Agent ({proxy:{hostname:"MYPROXYHOST",port:3128, auth:"USER:PASS"}})
-...
 ```
 
 # caveat
